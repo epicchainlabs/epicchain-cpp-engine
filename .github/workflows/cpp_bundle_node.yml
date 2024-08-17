@@ -1,0 +1,73 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  
+  testEmscriptenNode:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: docker://trzeci/emscripten:latest     
+
+    - name: make vendor_js
+      run: make vendor_js
+        
+    - name: Make using emscripten image
+      run: docker run -v $(pwd):/src trzeci/emscripten make js
+
+    - name: Make run_js basic test
+      run: make run_js
+
+  testEmscriptenWeb:
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [12.x]
+    
+    steps:
+    - uses: actions/checkout@v2
+    - uses: docker://trzeci/emscripten:latest
+
+    - name: make vendor_js
+      run: make vendor_js
+      
+    - name: npm run build
+      uses: actions/setup-node@v1
+      with:
+        node-version: ${{ matrix.node-version }}        
+    - run: cd ./packages/lib-neopt-core-js/ && npm install    
+    - run: cd ./packages/lib-neopt-core-js/ && npm run build
+
+    - name: run npm start for starting an express server with nohup
+      run: cd ./packages/lib-neopt-core-js/ && nohup npm run serve &
+
+    - name: run install for test
+      run: cd ./packages/lib-neopt-core-js/tests && npm install
+    
+    - name: run bundle test on server
+      run: cd ./packages/lib-neopt-core-js/tests && npm test
+
+  testC:
+    
+    runs-on: ubuntu-latest    
+    
+    steps:
+    - uses: actions/checkout@v2
+      
+    - name: make vendor_cpp
+      run: make vendor_cpp
+      
+    - name: make
+      run: make
+      
+    - name: make test
+      run: make test
